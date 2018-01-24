@@ -16,11 +16,70 @@
 
 package org.springsource.loaded.monitor;
 
+import org.springsource.loaded.ReloadableType;
+import org.springsource.loaded.TypeRegistry;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Logger;
+
 /**
  *
  * @author laganp
  */
 public class MonitorApi {
-	public void switchOn(String className, String methodName);
-	public void switchOff(String className, String methodName);
+
+	private static Logger log = Logger.getLogger(MonitorApi.class.getName());
+
+	private List<String> monitoredMethods;
+	private MonitorOriginalVersionRegister monitorOriginalVersionRegister;
+
+	public MonitorApi(MonitorOriginalVersionRegister monitorOriginalVersionRegister) {
+		monitoredMethods = new ArrayList<>();
+		this.monitorOriginalVersionRegister = monitorOriginalVersionRegister;
+	}
+
+	public void switchOn(String className, String methodName) {
+		boolean isMethodMonitored = isMethodMonitored(className, methodName);
+		if(!isMethodMonitored){
+			log.info(className + "." + methodName + "switching ON monitoring...");
+			//byte[] modifiedBytes = asmMethod.getModified
+			byte[] mockModifiedBytes = null;
+			InputStream modifiedClassStream = new ByteArrayInputStream(mockModifiedBytes);
+			ReloadableType rType = monitorOriginalVersionRegister.getReloadableType(className);
+			Long lmt = getLastModificationTime();
+			rType.typeRegistry.loadNewVersion(rType, lmt, modifiedClassStream);
+			log.info(className + "." + methodName + "monitoring switched ON!");
+			monitoredMethods.add(className + "." + methodName);
+		}else{
+			log.info(className + "." + methodName + "is monitored already!");
+		}
+	}
+
+	public void switchOff(String className, String methodName) {
+		boolean isMethodMonitored = isMethodMonitored(className, methodName);
+		if(isMethodMonitored){
+			log.info(className + "." + methodName + "is monitored now. Switching OFF...");
+			byte[] originalVersionClass = monitorOriginalVersionRegister.getOriginalVersionClass(className);
+			InputStream originalVersionClassStream = new ByteArrayInputStream(originalVersionClass);
+			ReloadableType rType = monitorOriginalVersionRegister.getReloadableType(className);
+			Long lmt = getLastModificationTime();
+			rType.typeRegistry.loadNewVersion(rType, lmt, originalVersionClassStream);
+			monitoredMethods.remove(className + "." + methodName);
+		}else{
+			log.info(className + "." + methodName + "isn't monitored already!");
+		}
+	}
+
+	private boolean isMethodMonitored(String className, String methodName){
+		return monitoredMethods.contains(className + "." + methodName);
+	}
+
+	private Long getLastModificationTime(){
+		return new Timestamp(System.currentTimeMillis()).getTime();
+	}
 }
+

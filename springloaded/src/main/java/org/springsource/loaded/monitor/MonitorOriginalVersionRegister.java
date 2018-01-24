@@ -20,6 +20,6 @@ package org.springsource.loaded.monitor;
  * 
  * @author laganp
  */
-public class MonitorOrginalVersionRegister {
+public class MonitorOriginalVersionRegister {
 
 }
