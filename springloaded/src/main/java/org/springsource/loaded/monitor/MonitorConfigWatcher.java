@@ -39,10 +39,11 @@ public class MonitorConfigWatcher {
 
 	public static final String configName = "test.txt";
 	public static final String configDir = "C:\\Users\\szemrajr\\Documents\\";
+	private static final String DELIMITER = ".";
 
 	public static List<String> watchedMethods = new ArrayList<>();
 
-	public void readCofnig() {
+	public void readConfig() {
 		List<String> newMethodList = new ArrayList<>();
 		String filePath = configDir + configName;
 		try (Stream<String> stream = Files.lines(Paths.get(filePath))) {
@@ -56,10 +57,11 @@ public class MonitorConfigWatcher {
 	}
 
 	public void addWatcherForNewlyAddedMethod(List<String> newMethodList) {
-
 		for (String newMethod : newMethodList) {
 			if (watchedMethods != null && !watchedMethods.contains(newMethod)) {
-				System.err.println("added: " + newMethod);
+				String method = newMethod.substring(newMethod.lastIndexOf(DELIMITER) + 1);
+				String className = newMethod.substring(0, newMethod.lastIndexOf(DELIMITER));
+				// execute MonitorApi.switchOn like
 				watchedMethods.add(newMethod);
 			}
 		}
@@ -71,7 +73,9 @@ public class MonitorConfigWatcher {
 			for (String oldMethod : watchedMethods) {
 				if (!newMethodList.contains(oldMethod)) {
 					methodsToRemove.add(oldMethod);
-					System.err.println("removed: " + oldMethod);
+					String method = oldMethod.substring(oldMethod.lastIndexOf(DELIMITER) + 1);
+					String className = oldMethod.substring(0, oldMethod.lastIndexOf(DELIMITER));
+					// execute MonitorApi.switchOff
 				}
 			}
 		}
@@ -87,7 +91,7 @@ public class MonitorConfigWatcher {
 				for (WatchEvent<?> event : wk.pollEvents()) {
 					final Path changed = (Path) event.context();
 					if (changed.endsWith(configName)) {
-						readCofnig();
+						readConfig();
 					}
 				}
 				boolean valid = wk.reset();
