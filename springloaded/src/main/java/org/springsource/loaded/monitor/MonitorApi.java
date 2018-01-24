@@ -17,7 +17,6 @@
 package org.springsource.loaded.monitor;
 
 import org.springsource.loaded.ReloadableType;
-import org.springsource.loaded.TypeRegistry;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -42,8 +41,8 @@ public class MonitorApi {
 		this.monitorOriginalVersionRegister = monitorOriginalVersionRegister;
 	}
 
-	public void switchOn(String className, String methodName) {
-		boolean isMethodMonitored = isMethodMonitored(className, methodName);
+    public void switchOn(String className, String methodName) throws ClassNotFoundException {
+        boolean isMethodMonitored = isMethodMonitored(className, methodName);
 		if(!isMethodMonitored){
 			log.info(className + "." + methodName + "switching ON monitoring...");
 			//byte[] modifiedBytes = asmMethod.getModified
@@ -59,12 +58,12 @@ public class MonitorApi {
 		}
 	}
 
-	public void switchOff(String className, String methodName) {
-		boolean isMethodMonitored = isMethodMonitored(className, methodName);
+    public void switchOff(String className, String methodName) throws ClassNotFoundException {
+        boolean isMethodMonitored = isMethodMonitored(className, methodName);
 		if(isMethodMonitored){
 			log.info(className + "." + methodName + "is monitored now. Switching OFF...");
-			byte[] originalVersionClass = monitorOriginalVersionRegister.getOriginalVersionClass(className);
-			InputStream originalVersionClassStream = new ByteArrayInputStream(originalVersionClass);
+            byte[] originalVersionClass = monitorOriginalVersionRegister.getOriginalClassVersion(className);
+            InputStream originalVersionClassStream = new ByteArrayInputStream(originalVersionClass);
 			ReloadableType rType = monitorOriginalVersionRegister.getReloadableType(className);
 			Long lmt = getLastModificationTime();
 			rType.typeRegistry.loadNewVersion(rType, lmt, originalVersionClassStream);
