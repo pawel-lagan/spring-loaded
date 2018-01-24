@@ -11,3 +11,6 @@ springloaded-*.jar
 *.iws
 /.gradle
 build/
+springloaded/.classpath
+springloaded/.project
+springloaded/.settings/org.eclipse.jdt.core.prefs
