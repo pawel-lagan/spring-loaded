@@ -3,8 +3,8 @@ apply plugin: 'maven'
 group = "org.springframework"
 jar.baseName = 'springloaded'
 
-sourceCompatibility = 1.5
-targetCompatibility = 1.5
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
 
 task writeNewPom << {
   def pompom = pom {

@@ -44,6 +44,7 @@ import org.springsource.loaded.SystemClassReflectionRewriter.RewriteResult;
 import org.springsource.loaded.TypeRegistry;
 import org.springsource.loaded.TypeRegistry.ReloadableTypeNameDecision;
 import org.springsource.loaded.Utils;
+import org.springsource.loaded.monitor.MonitorInitializer;
 import org.springsource.loaded.ri.ReflectiveInterceptor;
 import org.springsource.loaded.support.Java8;
 
@@ -80,6 +81,8 @@ public class SpringLoadedPreProcessor implements Constants {
 	// Doing it early can lead to hangs
 	private static boolean firstReloadableTypeHit = false;
 
+	private MonitorInitializer monitorInitializer = new MonitorInitializer();
+
 	public void initialize() {
 		// When spring loaded is running as an agent, it should not be defining types directly (this setting does not apply to
 		// the generated suuport types)
@@ -110,10 +113,14 @@ public class SpringLoadedPreProcessor implements Constants {
 	 * class name in order to determine whether the type should be made reloadable. Non-reloadable types will at least
 	 * get their call sites rewritten.
 	 *
-	 * @param classLoader the classloader loading this type
-	 * @param slashedClassName the slashed class name (e.g. java/lang/String) being loaded
-	 * @param protectionDomain the protection domain for the loaded class
-	 * @param bytes the class bytes for the class being loaded
+	 * @param classLoader
+	 *            the classloader loading this type
+	 * @param slashedClassName
+	 *            the slashed class name (e.g. java/lang/String) being loaded
+	 * @param protectionDomain
+	 *            the protection domain for the loaded class
+	 * @param bytes
+	 *            the class bytes for the class being loaded
 	 * @return potentially modified bytes
 	 */
 	public byte[] preProcess(ClassLoader classLoader, String slashedClassName, ProtectionDomain protectionDomain,
@@ -152,20 +159,16 @@ public class SpringLoadedPreProcessor implements Constants {
 						}
 						systemClassesRequiringInitialization.put(slashedClassName, rr.bits);
 						return rr.bytes;
-					}
-					catch (Exception re) {
+					} catch (Exception re) {
 						re.printStackTrace();
 					}
 
-				}
-				else if (slashedClassName.equals("java/lang/invoke/InnerClassLambdaMetafactory")) {
+				} else if (slashedClassName.equals("java/lang/invoke/InnerClassLambdaMetafactory")) {
 					bytes = Java8.enhanceInnerClassLambdaMetaFactory(bytes);
 					return bytes;
-				}
-				else if ((GlobalConfiguration.investigateSystemClassReflection
+				} else if ((GlobalConfiguration.investigateSystemClassReflection
 						|| GlobalConfiguration.rewriteAllSystemClasses)
-						&&
-						SystemClassReflectionInvestigator.investigate(slashedClassName, bytes,
+						&& SystemClassReflectionInvestigator.investigate(slashedClassName, bytes,
 								GlobalConfiguration.investigateSystemClassReflection) > 0) {
 					// This block can help when you suspect there is a system class using reflection and that
 					// class isn't on the 'shortlist' (in systemClassesContainingReflection). Basically turn on the
@@ -174,8 +177,7 @@ public class SpringLoadedPreProcessor implements Constants {
 					if (GlobalConfiguration.rewriteAllSystemClasses) {
 						systemClassesRequiringInitialization.put(slashedClassName, rr.bits);
 						return rr.bytes;
-					}
-					else {
+					} else {
 						System.err.println("Type " + slashedClassName + " rewrite summary: " + rr.summarize());
 						return bytes;
 					}
@@ -189,8 +191,8 @@ public class SpringLoadedPreProcessor implements Constants {
 		// 2. If NO, and nothing in this classloader might be, return the original bytes.
 		// 3. If YES, make the type reloadable (including rewriting call sites)
 
-		ReloadableTypeNameDecision isReloadableTypeName = typeRegistry.isReloadableTypeName(slashedClassName,
-				protectionDomain, bytes);
+		ReloadableTypeNameDecision isReloadableTypeName =
+				typeRegistry.isReloadableTypeName(slashedClassName, protectionDomain, bytes);
 
 		if (isReloadableTypeName.isReloadable && GlobalConfiguration.explainMode && log.isLoggable(Level.INFO)) {
 			log.info("[explanation] Based on the name, type " + slashedClassName + " is considered to be reloadable");
@@ -280,8 +282,8 @@ public class SpringLoadedPreProcessor implements Constants {
 							for (int i = 0; i < interfacesImplemented.length; i++) {
 								TypeRegistry currentRegistry = typeRegistry;
 								while (currentRegistry != null) {
-									ReloadableType originalReloadable = currentRegistry.getReloadableType(
-											interfacesImplemented[i]);
+									ReloadableType originalReloadable =
+											currentRegistry.getReloadableType(interfacesImplemented[i]);
 									if (originalReloadable != null) {
 										makeReloadableAnyway = true;
 										break;
@@ -332,36 +334,34 @@ public class SpringLoadedPreProcessor implements Constants {
 						//						}
 					}
 				}
-				ReloadableType rtype = typeRegistry.addType(dottedClassName, bytes);
+
+				ReloadableType rtype = monitorInitializer.onClassLoad(dottedClassName, typeRegistry, bytes);
 				if (rtype == null && GlobalConfiguration.callsideRewritingOn) {
 					// it is not a candidate for being made reloadable (maybe it is an annotation type)
 					// but we still need to rewrite call sites.
 					bytes = typeRegistry.methodCallRewrite(bytes);
-				}
-				else {
+				} else {
+
 					if (GlobalConfiguration.fileSystemMonitoring && watchPath != null) {
 						typeRegistry.monitorForUpdates(rtype, watchPath);
 					}
+
 					return rtype.bytesLoaded;
 				}
-			}
-			catch (RuntimeException re) {
+			} catch (RuntimeException re) {
 				log.throwing("SpringLoadedPreProcessor", "preProcess", re);
 				throw re;
 			}
-		}
-		else {
+		} else {
 			try {
 				// TODO what happens across classloader boundaries? (for regular code and reflective calls)
 				// Skipping the CallSiteClassLoader here because types from there will already have been dealt
 				// with due to GroovyPlugin class that intercepts define in that infrastructure
-				if (needsClientSideRewriting(slashedClassName) &&
-						(classLoader == null || !classLoader.getClass().getName().equals(
-								"org.codehaus.groovy.runtime.callsite.CallSiteClassLoader"))) {
+				if (needsClientSideRewriting(slashedClassName) && (classLoader == null || !classLoader.getClass()
+						.getName().equals("org.codehaus.groovy.runtime.callsite.CallSiteClassLoader"))) {
 					bytes = typeRegistry.methodCallRewriteUseCacheIfAvailable(slashedClassName, bytes);
 				}
-			}
-			catch (Throwable t) {
+			} catch (Throwable t) {
 				log.log(Level.SEVERE, "Unexpected problem transforming call sites", t);
 			}
 		}
@@ -411,11 +411,9 @@ public class SpringLoadedPreProcessor implements Constants {
 					Class<?> clazz = cl.loadClass(classname.replace('/', '.'));
 					injectReflectiveInterceptorMethods(slashedClassName, bits, clazz);
 					toRemoveList.add(classname);
-				}
-				catch (ClassCircularityError cce) {
+				} catch (ClassCircularityError cce) {
 					// See comment above. 'assume' this is OK, the initialization will happen again next time around.
-				}
-				catch (Exception e) {
+				} catch (Exception e) {
 					// NPE seen out in the wild:
 					// java.lang.NullPointerException
 					// at java.lang.reflect.Proxy.isProxyClass(Proxy.java:789)
@@ -452,8 +450,7 @@ public class SpringLoadedPreProcessor implements Constants {
 	 * This method tries to inject the ReflectiveInterceptor methods into any system types that have been rewritten.
 	 */
 	private void injectReflectiveInterceptorMethods(String slashedClassName, int bits, Class<?> clazz)
-			throws NoSuchFieldException,
-			IllegalAccessException, NoSuchMethodException {
+			throws NoSuchFieldException, IllegalAccessException, NoSuchMethodException {
 		// TODO log the bits
 		if ((bits & Constants.JLC_GETDECLAREDFIELDS) != 0) {
 			Field f = clazz.getDeclaredField("__sljlcgdfs");
@@ -538,9 +535,8 @@ public class SpringLoadedPreProcessor implements Constants {
 	private static boolean prepared = false;
 
 	private static Method method_jlcgdfs, method_jlcgdf, method_jlcgf, method_jlcgdms, method_jlcgdm, method_jlcgm,
-			method_jlcgdc,
-			method_jlcgc, method_jlcgmods, method_jlcgms, method_jlcgdcs, method_jlrfg, method_jlrfgl, method_jlrmi,
-			method_jloObjectStream_hasInitializerMethod;
+			method_jlcgdc, method_jlcgc, method_jlcgmods, method_jlcgms, method_jlcgdcs, method_jlrfg, method_jlrfgl,
+			method_jlrmi, method_jloObjectStream_hasInitializerMethod;
 
 	/**
 	 * Cache the Method objects that will be injected.
@@ -555,10 +551,10 @@ public class SpringLoadedPreProcessor implements Constants {
 				method_jlcgdms = clazz.getDeclaredMethod("jlClassGetDeclaredMethods", Class.class);
 				method_jlcgdm = clazz.getDeclaredMethod("jlClassGetDeclaredMethod", Class.class, String.class,
 						EMPTY_CLASS_ARRAY_CLAZZ);
-				method_jlcgm = clazz.getDeclaredMethod("jlClassGetMethod", Class.class, String.class,
-						EMPTY_CLASS_ARRAY_CLAZZ);
-				method_jlcgdc = clazz.getDeclaredMethod("jlClassGetDeclaredConstructor", Class.class,
-						EMPTY_CLASS_ARRAY_CLAZZ);
+				method_jlcgm =
+						clazz.getDeclaredMethod("jlClassGetMethod", Class.class, String.class, EMPTY_CLASS_ARRAY_CLAZZ);
+				method_jlcgdc =
+						clazz.getDeclaredMethod("jlClassGetDeclaredConstructor", Class.class, EMPTY_CLASS_ARRAY_CLAZZ);
 				method_jlcgc = clazz.getDeclaredMethod("jlClassGetConstructor", Class.class, EMPTY_CLASS_ARRAY_CLAZZ);
 				method_jlcgmods = clazz.getDeclaredMethod("jlClassGetModifiers", Class.class);
 				method_jlcgms = clazz.getDeclaredMethod("jlClassGetMethods", Class.class);
@@ -567,10 +563,9 @@ public class SpringLoadedPreProcessor implements Constants {
 				method_jlrfg = clazz.getDeclaredMethod("jlrFieldGet", Field.class, Object.class);
 				method_jlrfgl = clazz.getDeclaredMethod("jlrFieldGetLong", Field.class, Object.class);
 				method_jlrmi = clazz.getDeclaredMethod("jlrMethodInvoke", Method.class, Object.class, Object[].class);
-				method_jloObjectStream_hasInitializerMethod = clazz.getDeclaredMethod("jlosHasStaticInitializer",
-						Class.class);
-			}
-			catch (NoSuchMethodException nsme) {
+				method_jloObjectStream_hasInitializerMethod =
+						clazz.getDeclaredMethod("jlosHasStaticInitializer", Class.class);
+			} catch (NoSuchMethodException nsme) {
 				// cant happen, a-hahaha
 				throw new Impossible(nsme);
 			}
@@ -592,8 +587,10 @@ public class SpringLoadedPreProcessor implements Constants {
 	 * protectionDomain per 'directory' containing class files (and so the slashedClassName must be appended to the
 	 * codesource). Some classloaders have a protectiondomain per class.
 	 *
-	 * @param protectionDomain the protection domain passed in to the defineclass call
-	 * @param slashedClassName the slashed class name currently being defined
+	 * @param protectionDomain
+	 *            the protection domain passed in to the defineclass call
+	 * @param slashedClassName
+	 *            the slashed class name currently being defined
 	 * @return the path to watch for changes to this class
 	 */
 	private String getWatchPathFromProtectionDomain(ProtectionDomain protectionDomain, String slashedClassName) {
@@ -604,16 +601,14 @@ public class SpringLoadedPreProcessor implements Constants {
 			if (GlobalConfiguration.isRuntimeLogging && log.isLoggable(Level.WARNING)) {
 				log.warning("Changes to type cannot be tracked: " + slashedClassName + " - no protection domain");
 			}
-		}
-		else {
+		} else {
 			try {
 				CodeSource codeSource = protectionDomain.getCodeSource();
 				if (codeSource == null || codeSource.getLocation() == null) {
 					if (GlobalConfiguration.isRuntimeLogging && log.isLoggable(Level.WARNING)) {
 						log.warning("null codesource for " + slashedClassName);
 					}
-				}
-				else {
+				} else {
 					if (GlobalConfiguration.isRuntimeLogging && log.isLoggable(Level.FINEST)) {
 						log.finest("Codesource.getLocation()=" + codeSource.getLocation());
 					}
@@ -625,16 +620,14 @@ public class SpringLoadedPreProcessor implements Constants {
 					try {
 						file = new File(codeSource.getLocation().getFile());
 						uri = file.toURI();
-					}
-					catch (IllegalArgumentException iae) {
+					} catch (IllegalArgumentException iae) {
 						boolean recovered = false;
 						if (iae.toString().indexOf("URI is not hierarchical") != -1) {
 							// try another approach...
 							String uristring = uri.toString();
 							if (uristring.startsWith("file:../")) {
 								file = new File(uristring.substring(8)).getAbsoluteFile();
-							}
-							else if (uristring.startsWith("file:./")) {
+							} else if (uristring.startsWith("file:./")) {
 								file = new File(uristring.substring(7)).getAbsoluteFile();
 							}
 							if (file != null && file.exists()) {
@@ -649,11 +642,9 @@ public class SpringLoadedPreProcessor implements Constants {
 					}
 					if (file.isDirectory()) {
 						file = new File(file, slashedClassName + ".class");
-					}
-					else if (file.getName().endsWith(".class")) {
+					} else if (file.getName().endsWith(".class")) {
 						// great! nothing to do
-					}
-					else if (file.getName().endsWith(".jar")) {
+					} else if (file.getName().endsWith(".jar")) {
 						boolean found = false;
 						if (GlobalConfiguration.jarsToWatch != null) {
 							// Check if it is one to watch
@@ -671,19 +662,16 @@ public class SpringLoadedPreProcessor implements Constants {
 						}
 						if (!found)
 							return null;
-					}
-					else if (file.toString().equals("/groovy/script") || file.toString().equals("\\groovy\\script")) {
+					} else if (file.toString().equals("/groovy/script") || file.toString().equals("\\groovy\\script")) {
 						// nothing to do, compiled/loaded by a GroovyClassLoader$InnerLoader - there is nothing to watch.  If the type is to be
 						// reloaded we will have to be told via an alternate route
 						return null;
-					}
-					else if (!file.toString().endsWith(".class")) {
+					} else if (!file.toString().endsWith(".class")) {
 						// GRAILS-9076: it ended in .groovy
 						// GRAILS-9069/GRAILS-9070: it was /groovy/shell
 						// something other than a class, no point in watching it
 						return null;
-					}
-					else {
+					} else {
 						throw new UnsupportedOperationException("unable to watch " + slashedClassName.replace('/', '.')
 								+ ". Computed location=" + file.toString());
 					}
@@ -692,8 +680,7 @@ public class SpringLoadedPreProcessor implements Constants {
 						log.info("Watched location for changes to " + slashedClassName + " is " + watchPath);
 					}
 				}
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				throw new IllegalStateException("Unexpected problem processing URI ", e);
 			}
 		}
@@ -727,19 +714,16 @@ public class SpringLoadedPreProcessor implements Constants {
 			if (extraGlobalPlugins != null) {
 				for (String globalPlugin : extraGlobalPlugins) {
 					try {
-						Class<?> pluginClass = Class.forName(globalPlugin, false,
-								SpringLoadedPreProcessor.class.getClassLoader());
+						Class<?> pluginClass =
+								Class.forName(globalPlugin, false, SpringLoadedPreProcessor.class.getClassLoader());
 						plugins.add((Plugin) pluginClass.newInstance());
-					}
-					catch (ClassNotFoundException e) {
+					} catch (ClassNotFoundException e) {
 						System.err.println("Unexpected problem loading global plugin:" + globalPlugin);
 						e.printStackTrace(System.err);
-					}
-					catch (InstantiationException e) {
+					} catch (InstantiationException e) {
 						System.err.println("Unexpected problem loading global plugin:" + globalPlugin);
 						e.printStackTrace(System.err);
-					}
-					catch (IllegalAccessException e) {
+					} catch (IllegalAccessException e) {
 						System.err.println("Unexpected problem loading global plugin:" + globalPlugin);
 						e.printStackTrace(System.err);
 					}
