@@ -36,7 +36,8 @@ public class MonitorInitializer {
 
 	public ReloadableType onClassLoad(String className, TypeRegistry typeRegistry, byte[] bytes) {
 		ReloadableType rtype = typeRegistry.addType(className, bytes);
-
+		watcher.readConfig();
+		watcher.setWatcher();
 		return rtype;
 	}
 
