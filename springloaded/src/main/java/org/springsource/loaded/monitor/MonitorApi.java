@@ -20,6 +20,8 @@ import org.springsource.loaded.ReloadableType;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.lang.instrument.IllegalClassFormatException;
+import java.security.ProtectionDomain;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,30 +37,47 @@ public class MonitorApi {
 
 	private List<String> monitoredMethods;
 	private MonitorOriginalVersionRegister monitorOriginalVersionRegister;
+	private MonitorByteCodeModifier monitorByteCodeModifier;
 
 	public MonitorApi(MonitorOriginalVersionRegister monitorOriginalVersionRegister) {
 		monitoredMethods = new ArrayList<>();
 		this.monitorOriginalVersionRegister = monitorOriginalVersionRegister;
+		monitorByteCodeModifier = new MonitorByteCodeModifier();
 	}
 
     public void switchOn(String className, String methodName) throws ClassNotFoundException {
         boolean isMethodMonitored = isMethodMonitored(className, methodName);
 		if(!isMethodMonitored){
 			log.info(className + "." + methodName + " switching ON monitoring...");
-			//byte[] modifiedBytes = asmMethod.getModified
-			byte[] mockModifiedBytes = monitorOriginalVersionRegister.getOriginalClassVersion(className);
-			InputStream modifiedClassStream = new ByteArrayInputStream(mockModifiedBytes);
-			ReloadableType rType = monitorOriginalVersionRegister.getReloadableType(className);
-			Long lmt = getLastModificationTime();
-			rType.typeRegistry.loadNewVersion(rType, lmt, modifiedClassStream);
-			log.info(className + "." + methodName + "monitoring switched ON!");
-			monitoredMethods.add(className + "." + methodName);
+			byte[] modifiedBytes = getModifiedMethodBytes(className);
+			if (modifiedBytes != null) {
+				InputStream modifiedClassStream = new ByteArrayInputStream(modifiedBytes);
+				ReloadableType rType = monitorOriginalVersionRegister.getReloadableType(className);
+				Long lmt = getLastModificationTime();
+				rType.typeRegistry.loadNewVersion(rType, lmt, modifiedClassStream);
+				log.info(className + "." + methodName + "monitoring switched ON!");
+				monitoredMethods.add(className + "." + methodName);
+			}
 		}else{
 			log.info(className + "." + methodName + "is monitored already!");
 		}
 	}
 
-    public void switchOff(String className, String methodName) throws ClassNotFoundException {
+	private byte[] getModifiedMethodBytes(String className) throws ClassNotFoundException {
+		Class cls = Class.forName(className);
+		ClassLoader loader = cls.getClassLoader();
+		ProtectionDomain protectionDomain = cls.getProtectionDomain();
+		byte[] originalClassVersion = monitorOriginalVersionRegister.getOriginalClassVersion(className);
+		byte[] modifiedBytes = null;
+		try {
+            modifiedBytes = monitorByteCodeModifier.transform(loader, className, cls, protectionDomain, originalClassVersion);
+        } catch (IllegalClassFormatException e) {
+            e.printStackTrace();
+        }
+		return modifiedBytes;
+	}
+
+	public void switchOff(String className, String methodName) throws ClassNotFoundException {
         boolean isMethodMonitored = isMethodMonitored(className, methodName);
 		if(isMethodMonitored){
 			log.info(className + "." + methodName + "is monitored now. Switching OFF...");
