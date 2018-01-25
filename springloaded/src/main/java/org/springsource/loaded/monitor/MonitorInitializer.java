@@ -25,19 +25,18 @@ import org.springsource.loaded.TypeRegistry;
  */
 public class MonitorInitializer {
 
-	private MonitorConfigWatcher watcher = new MonitorConfigWatcher();
-	private MonitorApi api = new MonitorApi();
 	private MonitorOriginalVersionRegister reg = new MonitorOriginalVersionRegister();
+	private MonitorApi api = new MonitorApi(reg);
+	private MonitorConfigWatcher watcher = new MonitorConfigWatcher(api);
 	private MonitorByteCodeModifier mod = new MonitorByteCodeModifier();
 
 	public MonitorInitializer() {
-
+		watcher.readConfig();
+		watcher.setWatcher();
 	}
 
 	public ReloadableType onClassLoad(String className, TypeRegistry typeRegistry, byte[] bytes) {
 		ReloadableType rtype = typeRegistry.addType(className, bytes);
-		watcher.readConfig();
-		watcher.setWatcher();
 		return rtype;
 	}
 

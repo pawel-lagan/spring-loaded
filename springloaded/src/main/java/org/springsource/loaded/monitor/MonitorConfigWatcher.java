@@ -38,10 +38,16 @@ import java.util.stream.Stream;
 public class MonitorConfigWatcher {
 
 	public static final String configName = "test.txt";
-	public static final String configDir = "C:\\Users\\szemrajr\\Documents\\";
+	public static final String configDir = "";
 	private static final String DELIMITER = ".";
-
 	public static List<String> watchedMethods = new ArrayList<>();
+
+	private MonitorApi api;
+
+	public MonitorConfigWatcher(MonitorApi api) {
+		super();
+		this.api = api;
+	}
 
 	public void readConfig() {
 		List<String> newMethodList = new ArrayList<>();
@@ -50,24 +56,24 @@ public class MonitorConfigWatcher {
 			stream.forEach(newMethodList::add);
 			addWatcherForNewlyAddedMethod(newMethodList);
 			removeWatcherNewlyAddedMethod(newMethodList);
-		} catch (IOException ex) {
+		} catch (IOException | ClassNotFoundException ex) {
 			Logger.getLogger(MonitorConfigWatcher.class.getName()).log(Level.SEVERE, null, ex);
 		}
 
 	}
 
-	public void addWatcherForNewlyAddedMethod(List<String> newMethodList) {
+	public void addWatcherForNewlyAddedMethod(List<String> newMethodList) throws ClassNotFoundException {
 		for (String newMethod : newMethodList) {
 			if (watchedMethods != null && !watchedMethods.contains(newMethod)) {
 				String method = newMethod.substring(newMethod.lastIndexOf(DELIMITER) + 1);
 				String className = newMethod.substring(0, newMethod.lastIndexOf(DELIMITER));
-				// execute MonitorApi.switchOn like
+				api.switchOn(className, method);
 				watchedMethods.add(newMethod);
 			}
 		}
 	}
 
-	public void removeWatcherNewlyAddedMethod(List<String> newMethodList) {
+	public void removeWatcherNewlyAddedMethod(List<String> newMethodList) throws ClassNotFoundException {
 		List<String> methodsToRemove = new ArrayList<>();
 		if (watchedMethods != null) {
 			for (String oldMethod : watchedMethods) {
@@ -75,7 +81,7 @@ public class MonitorConfigWatcher {
 					methodsToRemove.add(oldMethod);
 					String method = oldMethod.substring(oldMethod.lastIndexOf(DELIMITER) + 1);
 					String className = oldMethod.substring(0, oldMethod.lastIndexOf(DELIMITER));
-					// execute MonitorApi.switchOff
+					api.switchOff(className, method);
 				}
 			}
 		}
@@ -96,7 +102,7 @@ public class MonitorConfigWatcher {
 				}
 				boolean valid = wk.reset();
 				if (!valid) {
-					System.out.println("Key has been unregisterede");
+					System.out.println("Key has been unregistered");
 				}
 			}
 		} catch (IOException ex) {
