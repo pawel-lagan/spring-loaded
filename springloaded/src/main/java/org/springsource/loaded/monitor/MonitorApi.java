@@ -44,9 +44,9 @@ public class MonitorApi {
     public void switchOn(String className, String methodName) throws ClassNotFoundException {
         boolean isMethodMonitored = isMethodMonitored(className, methodName);
 		if(!isMethodMonitored){
-			log.info(className + "." + methodName + "switching ON monitoring...");
+			log.info(className + "." + methodName + " switching ON monitoring...");
 			//byte[] modifiedBytes = asmMethod.getModified
-			byte[] mockModifiedBytes = null;
+			byte[] mockModifiedBytes = monitorOriginalVersionRegister.getOriginalClassVersion(className);
 			InputStream modifiedClassStream = new ByteArrayInputStream(mockModifiedBytes);
 			ReloadableType rType = monitorOriginalVersionRegister.getReloadableType(className);
 			Long lmt = getLastModificationTime();

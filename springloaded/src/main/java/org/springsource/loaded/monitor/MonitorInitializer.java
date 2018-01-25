@@ -32,7 +32,7 @@ public class MonitorInitializer {
 
 	public MonitorInitializer() {
         watcher.readConfig();
-        watcher.setWatcher();
+        new Thread(watcher).start();
     }
 
 	public ReloadableType onClassLoad(String className, TypeRegistry typeRegistry, byte[] bytes) {

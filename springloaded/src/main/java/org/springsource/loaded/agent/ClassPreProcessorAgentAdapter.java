@@ -51,6 +51,7 @@ public class ClassPreProcessorAgentAdapter implements ClassFileTransformer {
 			preProcessor.initialize();
 		}
 		catch (Exception e) {
+			e.printStackTrace();
 			throw new ExceptionInInitializerError("could not initialize JSR163 preprocessor due to: " + e.toString());
 		}
 	}

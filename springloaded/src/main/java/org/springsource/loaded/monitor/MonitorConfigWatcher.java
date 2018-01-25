@@ -35,10 +35,10 @@ import java.util.stream.Stream;
  *
  * @author laganp
  */
-public class MonitorConfigWatcher {
+public class MonitorConfigWatcher implements Runnable {
 
 	public static final String configName = "test.txt";
-	public static final String configDir = "";
+	public static final String configDir = "D:\\codersDay\\";
 	private static final String DELIMITER = ".";
 	public static List<String> watchedMethods = new ArrayList<>();
 
@@ -47,6 +47,11 @@ public class MonitorConfigWatcher {
 	public MonitorConfigWatcher(MonitorApi api) {
 		super();
 		this.api = api;
+	}
+
+	@Override
+	public void run() {
+		setWatcher();
 	}
 
 	public void readConfig() {
