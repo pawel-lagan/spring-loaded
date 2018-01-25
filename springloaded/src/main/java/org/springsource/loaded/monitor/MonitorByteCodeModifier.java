@@ -63,7 +63,7 @@ public class MonitorByteCodeModifier implements ClassFileTransformer {
     }
 
     private void changeMethod(CtBehavior method) throws NotFoundException, CannotCompileException {
-        method.insertBefore("System.out.println(\"started method at \" + new java.util.Date());");
-        method.insertAfter("System.out.println(\"ended method at \" + new java.util.Date());");
+        method.insertBefore("org.springsource.loaded.monitor.MonitorInterceptor.before();");
+        method.insertAfter("org.springsource.loaded.monitor.MonitorInterceptor.after();");
     }
 }
