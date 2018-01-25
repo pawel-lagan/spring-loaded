@@ -9,6 +9,7 @@ allprojects {
             url "http://maven.springframework.org/milestone"
         }
     }
+
 }
 
 

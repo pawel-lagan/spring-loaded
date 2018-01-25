@@ -28,7 +28,6 @@ public class MonitorInitializer {
 	private MonitorOriginalVersionRegister reg = new MonitorOriginalVersionRegister();
 	private MonitorApi api = new MonitorApi(reg);
 	private MonitorConfigWatcher watcher = new MonitorConfigWatcher(api);
-	private MonitorByteCodeModifier mod = new MonitorByteCodeModifier();
 
 	public MonitorInitializer() {
         watcher.readConfig();

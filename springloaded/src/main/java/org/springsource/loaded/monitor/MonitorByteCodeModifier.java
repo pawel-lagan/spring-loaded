@@ -24,17 +24,19 @@ import java.lang.instrument.IllegalClassFormatException;
 import java.security.ProtectionDomain;
 
 /**
- * 
  * @author laganp
  */
 public class MonitorByteCodeModifier implements ClassFileTransformer {
 
-    public MonitorByteCodeModifier() {
+    RedefiningClassMetaData redefiningClassMetaData;
+
+    public MonitorByteCodeModifier(RedefiningClassMetaData redefiningClassMetaData) {
         super();
+        this.redefiningClassMetaData = redefiningClassMetaData;
     }
 
     public byte[] transform(ClassLoader loader, String className, Class redefiningClass, ProtectionDomain domain, byte[] bytes) throws IllegalClassFormatException {
-        return transformClass(redefiningClass,bytes);
+        return transformClass(redefiningClass, bytes);
     }
 
     private byte[] transformClass(Class classToTransform, byte[] b) {
@@ -43,17 +45,16 @@ public class MonitorByteCodeModifier implements ClassFileTransformer {
         try {
             cl = pool.makeClass(new java.io.ByteArrayInputStream(b));
             CtBehavior[] methods = cl.getDeclaredBehaviors();
-            for (int i = 0; i < methods.length; i++) {
-                if (methods[i].isEmpty() == false) {
-                    changeMethod(methods[i]);
+            String methodName = redefiningClassMetaData.getMethodName();
+            for (CtBehavior method : methods) {
+                if (!method.isEmpty() && method.getName().equals(methodName)) {
+                    changeMethod(method);
                 }
             }
             b = cl.toBytecode();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
-        }
-        finally {
+        } finally {
             if (cl != null) {
                 cl.detach();
             }
@@ -62,9 +63,7 @@ public class MonitorByteCodeModifier implements ClassFileTransformer {
     }
 
     private void changeMethod(CtBehavior method) throws NotFoundException, CannotCompileException {
-        if (method.getName().equals("doIt")) {
-            method.insertBefore("System.out.println(\"started method at \" + new java.util.Date());");
-            method.insertAfter("System.out.println(\"ended method at \" + new java.util.Date());");
-        }
+        method.insertBefore("System.out.println(\"started method at \" + new java.util.Date());");
+        method.insertAfter("System.out.println(\"ended method at \" + new java.util.Date());");
     }
 }

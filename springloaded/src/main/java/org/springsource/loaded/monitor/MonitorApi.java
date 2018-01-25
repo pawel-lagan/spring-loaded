@@ -38,17 +38,20 @@ public class MonitorApi {
 	private List<String> monitoredMethods;
 	private MonitorOriginalVersionRegister monitorOriginalVersionRegister;
 	private MonitorByteCodeModifier monitorByteCodeModifier;
+	private RedefiningClassMetaData redefiningClassMetaData;
 
 	public MonitorApi(MonitorOriginalVersionRegister monitorOriginalVersionRegister) {
 		monitoredMethods = new ArrayList<>();
 		this.monitorOriginalVersionRegister = monitorOriginalVersionRegister;
-		monitorByteCodeModifier = new MonitorByteCodeModifier();
+		this.redefiningClassMetaData = new RedefiningClassMetaData();
+		this.monitorByteCodeModifier = new MonitorByteCodeModifier(redefiningClassMetaData);
 	}
 
     public void switchOn(String className, String methodName) throws ClassNotFoundException {
         boolean isMethodMonitored = isMethodMonitored(className, methodName);
 		if(!isMethodMonitored){
 			log.info(className + "." + methodName + " switching ON monitoring...");
+			redefiningClassMetaData.setMethodName(methodName);
 			byte[] modifiedBytes = getModifiedMethodBytes(className);
 			if (modifiedBytes != null) {
 				InputStream modifiedClassStream = new ByteArrayInputStream(modifiedBytes);
@@ -64,6 +67,7 @@ public class MonitorApi {
 	}
 
 	private byte[] getModifiedMethodBytes(String className) throws ClassNotFoundException {
+		log.info("Getting original class bytes...");
 		Class cls = Class.forName(className);
 		ClassLoader loader = cls.getClassLoader();
 		ProtectionDomain protectionDomain = cls.getProtectionDomain();
@@ -72,8 +76,8 @@ public class MonitorApi {
 		try {
             modifiedBytes = monitorByteCodeModifier.transform(loader, className, cls, protectionDomain, originalClassVersion);
         } catch (IllegalClassFormatException e) {
-            e.printStackTrace();
-        }
+			e.printStackTrace();
+		}
 		return modifiedBytes;
 	}
 
