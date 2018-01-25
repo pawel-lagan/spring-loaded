@@ -31,13 +31,17 @@ public class MonitorInitializer {
 	private MonitorByteCodeModifier mod = new MonitorByteCodeModifier();
 
 	public MonitorInitializer() {
-		watcher.readConfig();
-		watcher.setWatcher();
-	}
+        watcher.readConfig();
+        watcher.setWatcher();
+    }
 
 	public ReloadableType onClassLoad(String className, TypeRegistry typeRegistry, byte[] bytes) {
 		ReloadableType rtype = typeRegistry.addType(className, bytes);
-		return rtype;
-	}
+        if (rtype != null) {
+            reg.register(rtype, className, bytes);
+        }
+
+        return rtype;
+    }
 
 }
