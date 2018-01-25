@@ -29,11 +29,11 @@ public class MonitorOriginalVersionRegister {
 
 
     private Map<String, ReloadableType> rTypeClassMap = new HashMap<>();
-    private Map<String, byte[]> originalClassMap = new HashMap<>();
+    private Map<String, byte[]> byteClassMap = new HashMap<>();
 
     public byte[] getOriginalClassVersion(String dottedClassName) throws ClassNotFoundException {
 
-        byte[] bytesFromMap = originalClassMap.get(dottedClassName);
+        byte[] bytesFromMap = byteClassMap.get(dottedClassName);
 
         return bytesFromMap;
 
@@ -41,13 +41,9 @@ public class MonitorOriginalVersionRegister {
 
     public void register(ReloadableType rtype, String dottedClassName, byte[] bytes) {
 
-        //czy powinnismy w jednej mapie przechowywac klasy oryginalne a w drugiej najnowsza wersje zmodyfikowanej klasy ?
-
-        if (rTypeClassMap.get(dottedClassName) == null && originalClassMap.get(dottedClassName) == null) {
-            originalClassMap.put(dottedClassName, bytes);
+        if (rTypeClassMap.get(dottedClassName) == null && byteClassMap.get(dottedClassName) == null) {
+            byteClassMap.put(dottedClassName, bytes);
             rTypeClassMap.put(dottedClassName, rtype);
-        } else {
-            rTypeClassMap.replace(dottedClassName, rtype);
         }
     }
 
@@ -55,8 +51,7 @@ public class MonitorOriginalVersionRegister {
 
         //czy jezeli nie znajdziemy klasy na mapie to powinnismy ja sciagac z TypeRegister ?
 
-        ReloadableType reloadableType = null;
-        reloadableType = rTypeClassMap.get(dottedClassName);
+        ReloadableType reloadableType = rTypeClassMap.get(dottedClassName);
 //        if(reloadableType == null) {
 //            Class cls = Class.forName(dottedClassName);
 //            ClassLoader loader = new ClassLoader(cls.getClassLoader());
