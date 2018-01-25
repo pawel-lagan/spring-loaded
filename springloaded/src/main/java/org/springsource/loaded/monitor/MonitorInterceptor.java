@@ -1,8 +1,11 @@
 package org.springsource.loaded.monitor;
 
 import java.util.LinkedList;
+import java.util.logging.*;
 
 public class MonitorInterceptor {
+
+    private static Logger log = Logger.getLogger(MonitorApi.class.getName());
 
     public static  LinkedList<Long> timeStack = new LinkedList<Long>();
 
@@ -11,6 +14,6 @@ public class MonitorInterceptor {
     }
 
     public static void after(){
-        System.out.println(System.currentTimeMillis() - timeStack.pollLast());
+        log.info("Method execution time: " + (System.currentTimeMillis() - timeStack.pollLast()));
     }
 }

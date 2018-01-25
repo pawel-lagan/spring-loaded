@@ -27,20 +27,15 @@ import java.util.Map;
  */
 public class MonitorOriginalVersionRegister {
 
-
     private Map<String, ReloadableType> rTypeClassMap = new HashMap<>();
     private Map<String, byte[]> byteClassMap = new HashMap<>();
 
     public byte[] getOriginalClassVersion(String dottedClassName) throws ClassNotFoundException {
-
         byte[] bytesFromMap = byteClassMap.get(dottedClassName);
-
         return bytesFromMap;
-
     }
 
     public void register(ReloadableType rtype, String dottedClassName, byte[] bytes) {
-
         if (rTypeClassMap.get(dottedClassName) == null && byteClassMap.get(dottedClassName) == null) {
             byteClassMap.put(dottedClassName, bytes);
             rTypeClassMap.put(dottedClassName, rtype);
@@ -48,18 +43,7 @@ public class MonitorOriginalVersionRegister {
     }
 
     public ReloadableType getReloadableType(String dottedClassName) throws ClassNotFoundException {
-
-        //czy jezeli nie znajdziemy klasy na mapie to powinnismy ja sciagac z TypeRegister ?
-
         ReloadableType reloadableType = rTypeClassMap.get(dottedClassName);
-//        if(reloadableType == null) {
-//            Class cls = Class.forName(dottedClassName);
-//            ClassLoader loader = new ClassLoader(cls.getClassLoader());
-//            TypeRegistry typeRegistryFor = TypeRegistry.getTypeRegistryFor(loader);
-//            String slashedClassName = dottedClassName.replace(".", "/");
-//            reloadableType = typeRegistryFor.getReloadableType(slashedClassName);
-//        }
-
         return reloadableType;
     }
 

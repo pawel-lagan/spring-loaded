@@ -66,21 +66,6 @@ public class MonitorApi {
 		}
 	}
 
-	private byte[] getModifiedMethodBytes(String className) throws ClassNotFoundException {
-		log.info("Getting original class bytes...");
-		Class cls = Class.forName(className);
-		ClassLoader loader = cls.getClassLoader();
-		ProtectionDomain protectionDomain = cls.getProtectionDomain();
-		byte[] originalClassVersion = monitorOriginalVersionRegister.getOriginalClassVersion(className);
-		byte[] modifiedBytes = null;
-		try {
-            modifiedBytes = monitorByteCodeModifier.transform(loader, className, cls, protectionDomain, originalClassVersion);
-        } catch (IllegalClassFormatException e) {
-			e.printStackTrace();
-		}
-		return modifiedBytes;
-	}
-
 	public void switchOff(String className, String methodName) throws ClassNotFoundException {
         boolean isMethodMonitored = isMethodMonitored(className, methodName);
 		if(isMethodMonitored){
@@ -91,9 +76,26 @@ public class MonitorApi {
 			Long lmt = getLastModificationTime();
 			rType.typeRegistry.loadNewVersion(rType, lmt, originalVersionClassStream);
 			monitoredMethods.remove(className + "." + methodName);
+			log.info(className + "." + methodName + "monitoring switched OFF!");
 		}else{
 			log.info(className + "." + methodName + "isn't monitored already!");
 		}
+	}
+
+
+	private byte[] getModifiedMethodBytes(String className) throws ClassNotFoundException {
+		log.info("Getting original class bytes...");
+		Class cls = Class.forName(className);
+		ClassLoader loader = cls.getClassLoader();
+		ProtectionDomain protectionDomain = cls.getProtectionDomain();
+		byte[] originalClassVersion = monitorOriginalVersionRegister.getOriginalClassVersion(className);
+		byte[] modifiedBytes = null;
+		try {
+			modifiedBytes = monitorByteCodeModifier.transform(loader, className, cls, protectionDomain, originalClassVersion);
+		} catch (IllegalClassFormatException e) {
+			log.info("Cannot modify provided class" + e);
+		}
+		return modifiedBytes;
 	}
 
 	private boolean isMethodMonitored(String className, String methodName){
